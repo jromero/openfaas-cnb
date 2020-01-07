@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -e
+
+echo "---> OpenFaaS Buildpack"
+
+# GET ARGS
+layers_dir=$1
+plan_path=$3
+
+# BUILD UTILITIES
+utils_dir="${layers_dir}/utils"
+mkdir -p "${utils_dir}"
+curl -sL https://github.com/sclevine/yj/releases/download/v4.0.0/yj-linux > "${utils_dir}/yj"
+chmod +x "${utils_dir}/yj"
+curl -sL https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 > "${utils_dir}/jq"
+chmod +x "${utils_dir}/jq"
+
+export PATH="${utils_dir}:${PATH}"
+
+cat > "${utils_dir}.toml" <<EOL
+cache = true
+launch = false
+EOL
+
+# WATCHDOG
+echo "> Intalling watchdog..."
+fwatchdog_version=$(yj -tj < watchdog.toml | jq -r '.watchdog.version')
+if [[ -z "${fwatchdog_version}" ]]; then
+  >&2 echo "Must specify what version of watchdog to use in watchdog.toml."
+  exit 1
+fi
+
+fwatchdog_dir="${layers_dir}/fwatchdog"
+mkdir -p "${fwatchdog_dir}"
+
+curl -sL "https://github.com/openfaas/faas/releases/download/${fwatchdog_version}/fwatchdog" > "${fwatchdog_dir}/fwatchdog"
+chmod +x "${fwatchdog_dir}/fwatchdog"
+
+cat > "${fwatchdog_dir}.toml" <<EOL
+cache = true
+launch = true
+EOL
+
+echo "> Setting environment variables..."
+mkdir -p "${fwatchdog_dir}/env.launch"
+yj -tj < watchdog.toml | jq -r '.watchdog.env | to_entries[] | @text "\(.key),\(.value)"' | while IFS=, read -r key value
+do
+    echo -n "${value}" > "${fwatchdog_dir}/env.launch/${key}"
+done
+
+echo "> Setting fwatchdog as 'web' process..."
+cat >> "${layers_dir}/launch.toml" <<EOL
+[[processes]]
+type = "web"
+command = "${fwatchdog_dir}/fwatchdog"
+EOL
