@@ -37,5 +37,13 @@ pack build my-app \
 ### Testing
 
 ```shell script
-./test/test.sh
+make test
+```
+
+### Packaging
+
+Creates a portable `.tgz` format of this buildpack. 
+
+```shell script
+make package
 ```
