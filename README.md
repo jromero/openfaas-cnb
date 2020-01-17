@@ -1,3 +1,5 @@
+> This buildpack currently requires additional functionality to be provided by pack. Specifically [PR#450](https://github.com/buildpacks/pack/pull/450).
+
 # openfaas-cnb
 
 Clound Native Buildpack for [OpenFaaS](https://www.openfaas.com/)
@@ -30,6 +32,7 @@ cgi_headers = "true"
 ```shell script
 pack build my-app \
   --builder heroku/buildpacks:18 \
+  --buildpack from=builder \
   --buildpack https://github.com/jromero/openfaas-cnb/releases/download/0.0.1/openfaas-cnb-0.0.1.tgz \
   --path .
 ```
