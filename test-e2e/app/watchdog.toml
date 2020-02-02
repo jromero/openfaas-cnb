@@ -1,5 +1,5 @@
 [watchdog]
-version = "0.9.14"
+version = "0.7.6"
 
 # Key-value pairs that will be passed onto image as environment variables
 # see https://github.com/openfaas/faas/tree/master/watchdog#delve-deeper

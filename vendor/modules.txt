@@ -1,0 +1,17 @@
+# github.com/BurntSushi/toml v0.3.1
+github.com/BurntSushi/toml
+# github.com/buildpacks/libbuildpack/v2 v2.0.4
+github.com/buildpacks/libbuildpack/v2/application
+github.com/buildpacks/libbuildpack/v2/build
+github.com/buildpacks/libbuildpack/v2/buildpack
+github.com/buildpacks/libbuildpack/v2/buildpackplan
+github.com/buildpacks/libbuildpack/v2/buildplan
+github.com/buildpacks/libbuildpack/v2/detect
+github.com/buildpacks/libbuildpack/v2/internal
+github.com/buildpacks/libbuildpack/v2/layers
+github.com/buildpacks/libbuildpack/v2/logger
+github.com/buildpacks/libbuildpack/v2/platform
+github.com/buildpacks/libbuildpack/v2/services
+github.com/buildpacks/libbuildpack/v2/stack
+# github.com/onsi/gomega v1.9.0
+github.com/onsi/gomega/types

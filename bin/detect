@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-if [[ -f watchdog.toml ]]; then
-  exit 0
-fi
-
-exit 1
