@@ -1,5 +1,3 @@
-> This buildpack currently requires additional functionality to be provided by pack. Specifically [PR#450](https://github.com/buildpacks/pack/pull/450).
-
 # openfaas-cnb
 
 Clound Native Buildpack for [OpenFaaS](https://www.openfaas.com/)
@@ -17,11 +15,11 @@ A `watchdog.toml` must be present at the application root.
 ```toml
 [watchdog]
 # The watchdog version to use.
-# See https://github.com/openfaas/faas/releases 
-version = "0.9.14"
+# See https://github.com/openfaas-incubator/of-watchdog/releases
+version = "0.7.6"
 
 # Key-value pairs that will be passed onto image as environment variables.
-# See https://github.com/openfaas/faas/tree/master/watchdog#delve-deeper
+# See https://github.com/openfaas-incubator/of-watchdog#configuration
 [watchdog.env]
 fprocess = "./app.sh"
 cgi_headers = "true"
@@ -33,7 +31,7 @@ cgi_headers = "true"
 pack build my-app \
   --builder heroku/buildpacks:18 \
   --buildpack from=builder \
-  --buildpack https://github.com/jromero/openfaas-cnb/releases/download/0.0.1/openfaas-cnb-0.0.1.tgz \
+  --buildpack https://github.com/jromero/openfaas-cnb/releases/download/0.0.2/openfaas-cnb-0.0.2.tgz \
   --path .
 ```
 

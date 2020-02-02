@@ -43,4 +43,12 @@ test-e2e:
 	@echo "> Runing tests..."
 	./test-e2e/test.sh
 
+package: build/
+	@echo "> Packaging..."
+	@tar cvzf build/openfaas-cnb-$(VERSION).tgz buildpack.toml bin/
+	@ls build/
+
+build/:
+	mkdir -p build/
+
 .PHONY: clean test test-e2e
