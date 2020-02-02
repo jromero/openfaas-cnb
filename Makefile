@@ -12,6 +12,7 @@ LDFLAGS+=-X 'github.com/jromero/openfaas-cnb/pkg/version.Version=${VERSION}'
 
 GOFLAGS?=-mod=vendor
 GOOS?=linux
+GOARCH?=amd64
 
 default: test
 
@@ -27,26 +28,26 @@ help:
 
 build: export GOFLAGS := $(GOFLAGS)
 build: export GOOS := $(GOOS)
-build:
+build: export GOARCH := $(GOARCH)
+build: build/
 	@echo "> Building ${BIN_NAME} ${VERSION}..."
-	go build -ldflags="$(LDFLAGS)" -o bin/build -a ./cmd/build
-	go build -ldflags="$(LDFLAGS)" -o bin/detect -a ./cmd/detect
+	go build -ldflags="$(LDFLAGS)" -o build/bin/build -a ./cmd/build
+	go build -ldflags="$(LDFLAGS)" -o build/bin/detect -a ./cmd/detect
+	cp buildpack.toml build/buildpack.toml
 
 clean:
-	@test ! -e bin/build || rm bin/build
-	@test ! -e bin/detect || rm bin/detect
+	@test ! -e build || rm -rf build
 
 test:
-	go test ./...
+	go test -v ./...
 
 test-e2e:
 	@echo "> Runing tests..."
-	./test-e2e/test.sh
+	go test -tags e2e -v ./test_e2e/...
 
-package: build/
+package:
 	@echo "> Packaging..."
-	@tar cvzf build/openfaas-cnb-$(VERSION).tgz buildpack.toml bin/
-	@ls build/
+	@cd build; tar cvzf openfaas-cnb-$(VERSION).tgz buildpack.toml bin/
 
 build/:
 	mkdir -p build/

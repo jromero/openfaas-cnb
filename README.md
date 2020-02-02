@@ -41,10 +41,12 @@ pack build my-app \
 make build
 ```
 
-### Testing
+### Testing (End-to-End)
+
+Run end-to-end test using [`pack`](https://github.com/buildpacks/pack).
 
 ```shell script
-make test
+make test-e2e
 ```
 
 ### Packaging
