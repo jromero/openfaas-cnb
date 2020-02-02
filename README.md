@@ -1,4 +1,4 @@
-# openfaas-cnb
+# openfaas-cnb ![Build](https://github.com/jromero/openfaas-cnb/workflows/Build/badge.svg)
 
 Clound Native Buildpack for [OpenFaaS](https://www.openfaas.com/)
 
@@ -21,8 +21,7 @@ version = "0.7.6"
 # Key-value pairs that will be passed onto image as environment variables.
 # See https://github.com/openfaas-incubator/of-watchdog#configuration
 [watchdog.env]
-fprocess = "./app.sh"
-cgi_headers = "true"
+function_process = "./app.sh"
 ```
 
 #### Build your app
@@ -33,6 +32,13 @@ pack build my-app \
   --buildpack from=builder \
   --buildpack https://github.com/jromero/openfaas-cnb/releases/download/0.0.2/openfaas-cnb-0.0.2.tgz \
   --path .
+```
+
+
+### Building
+
+```shell script
+make build
 ```
 
 ### Testing
