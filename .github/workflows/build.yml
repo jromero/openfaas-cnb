@@ -1,7 +1,8 @@
 name: Build
-on: [push]
-jobs:
 
+on: [push]
+
+jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -39,11 +40,14 @@ jobs:
       - name: Build
         run: make build
 
-      - name: Test
+      - name: End-to-End Test
         run: make test-e2e
         env:
           PACK_BIN: ${{ github.workspace }}/pack
           BUILDPACK_PATH: ${{ github.workspace }}/build/
 
-      - name: Package
-        run: make package
+      - name: Store artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: openfaas-cnb-${{ github.sha }}
+          path: ${{ github.workspace }}/build/
