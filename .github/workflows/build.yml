@@ -46,8 +46,12 @@ jobs:
           PACK_BIN: ${{ github.workspace }}/pack
           BUILDPACK_PATH: ${{ github.workspace }}/build/
 
+      - name: Gather short SHA
+        id: vars
+        run: echo ::set-output name=sha_short::$(git rev-parse --short HEAD)
+
       - name: Store artifacts
         uses: actions/upload-artifact@v1
         with:
-          name: openfaas-cnb-${{ github.sha }}
+          name: openfaas-cnb-${{ steps.vars.outputs.sha_short }}
           path: ${{ github.workspace }}/build/
