@@ -11,10 +11,8 @@ LDFLAGS+=-X 'github.com/jromero/openfaas-cnb/pkg/version.BuildDate=${BUILD_DATE}
 LDFLAGS+=-X 'github.com/jromero/openfaas-cnb/pkg/version.Version=${VERSION}'
 
 GOFLAGS?=-mod=vendor
-GOOS?=linux
-GOARCH?=amd64
 
-default: test
+default: test build
 
 help:
 	@echo 'Management commands for openfaas-cnb:'
@@ -27,29 +25,26 @@ help:
 	@echo
 
 build: export GOFLAGS := $(GOFLAGS)
-build: export GOOS := $(GOOS)
-build: export GOARCH := $(GOARCH)
-build: build/
-	@echo "> Building ${BIN_NAME} ${VERSION}..."
+build:
+	@echo "> Building ${VERSION}..."
 	go build -ldflags="$(LDFLAGS)" -o build/bin/build -a ./cmd/build
 	go build -ldflags="$(LDFLAGS)" -o build/bin/detect -a ./cmd/detect
 	cp buildpack.toml build/buildpack.toml
 
-clean:
-	@test ! -e build || rm -rf build
-
+test: export GOFLAGS := $(GOFLAGS)
 test:
+	@echo "> Running tests..."
 	go test -v ./...
 
 test-e2e:
-	@echo "> Runing tests..."
+	@echo "> Running end-to-end tests..."
 	go test -tags e2e -v ./test_e2e/...
 
 package:
 	@echo "> Packaging..."
 	@cd build; tar cvzf openfaas-cnb-$(VERSION).tgz buildpack.toml bin/
 
-build/:
-	mkdir -p build/
+clean:
+	@test ! -e build || rm -rf build
 
 .PHONY: clean test test-e2e
