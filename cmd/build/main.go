@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"os"
 
 	"github.com/buildpacks/libbuildpack/v2/build"
@@ -22,7 +23,9 @@ func main() {
 		os.Exit(b.Failure(cmd.ParseConfigError))
 	}
 
-	watchdogLayer, err := watchdog.CreateWatchdogLayer(b.Layers, conf.Watchdog)
+	layerCreator := watchdog.NewLayerCreator(b.Logger, http.DefaultClient)
+
+	watchdogLayer, err := layerCreator.Create(b.Layers, conf.Watchdog)
 	if err != nil {
 		b.Logger.Info(err.Error())
 		os.Exit(b.Failure(cmd.LayerCreationError))
@@ -36,4 +39,3 @@ func main() {
 		os.Exit(b.Failure(cmd.UnexpectedError))
 	}
 }
-
