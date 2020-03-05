@@ -4,6 +4,7 @@ package test_e2e
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -12,8 +13,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 const (
@@ -24,70 +29,75 @@ const (
 )
 
 func TestEndToEnd(t *testing.T) {
-	packExec := findExec(t, "pack", os.Getenv(packBinary))
-
-	t.Log("> Test with heroku/buildpacks:18")
-
-	t.Log("Building buildpack...")
-	buildpackPath := resolveBuildpack(t)
-
-	t.Log("Building app...")
-	imageName := "test-app-" + strconv.Itoa(rand.Int())
-	packCmd := exec.Command(
-		packExec,
-		"build", imageName,
-		"--builder", "heroku/buildpacks:18",
-		"--buildpack", buildpackPath,
-		"--path", filepath.Join("testdata", "app"),
-		"--verbose",
-	)
-	output, err := packCmd.CombinedOutput()
-	if err != nil {
-		t.Log("output: ", string(output))
-		t.Fatalf("failed build app: %s", err)
-	}
-
-	t.Log("Run application...")
-	dockerExec := findExec(t, "docker", "")
-
-	hostPort, err := getFreePort()
-	if err != nil {
-		t.Fatalf("failed to get free port: %s", err.Error())
-	}
-
-	dockerCmd := exec.Command(dockerExec, "run", "--rm", "-d", "-p", strconv.Itoa(hostPort)+":8080", imageName)
-	output, err = dockerCmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to start container: %s", err.Error())
-	}
-	containerId := string(output)
-	defer func() {
-		exec.Command(dockerExec, "stop", containerId)
-	}()
-
-	// TODO: Do this better
-	time.Sleep(3 * time.Second)
-
-	t.Log("Ensure it's running as expected...")
-	resp, err := http.Get("http://localhost:" + strconv.Itoa(hostPort))
-	if err != nil {
-		t.Fatalf("failed to start container: %s", err.Error())
-	}
-	defer resp.Body.Close()
-
-	buf := &bytes.Buffer{}
-	if _, err := io.Copy(buf, resp.Body); err != nil {
-		t.Fatalf("failed to read response: %s", err.Error())
-	}
-
-	result := buf.String()
-	expected := "it works"
-	if result != expected {
-		t.Fatalf("expected: '%s', got: '%s'", expected, result)
-	}
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "E2E")
 }
 
-func resolveBuildpack(t *testing.T) string {
+var _ = Describe("E2E", func() {
+	t := GinkgoT()
+
+	It("runs successfully", func() {
+		packExec := findExec(t, "pack", os.Getenv(packBinary))
+
+		t.Log("> Test with heroku/buildpacks:18")
+
+		t.Log("Building buildpack...")
+		buildpackPath := resolveBuildpack(t)
+
+		t.Log("Building app...")
+		imageName := "test-app-" + strconv.Itoa(rand.Int())
+		packCmd := exec.Command(
+			packExec,
+			"build", imageName,
+			"--builder", "heroku/buildpacks:18",
+			"--buildpack", "from=builder",
+			"--buildpack", buildpackPath,
+			"--path", filepath.Join("testdata", "app"),
+			"--verbose",
+		)
+
+		t.Log("Running: ", packCmd.String())
+
+		output, err := packCmd.CombinedOutput()
+		Expect(err).To(BeNil(), "failed build app.\n %s", string(output))
+
+		t.Log("Run application...")
+		dockerExec := findExec(t, "docker", "")
+
+		hostPort, err := getFreePort()
+		Expect(err).To(BeNil(), "failed to get free port")
+
+		dockerCmd := exec.Command(dockerExec, "run", "--rm", "-d", "-p", strconv.Itoa(hostPort)+":8080", imageName, "faas")
+		output, err = dockerCmd.CombinedOutput()
+		Expect(err).To(BeNil(), "failed to start container")
+
+		containerId := string(output)
+		defer func() {
+			exec.Command(dockerExec, "stop", containerId)
+		}()
+
+		// TODO: Do this better
+		time.Sleep(3 * time.Second)
+
+		t.Log("Ensure it's running as expected...")
+		Eventually(func() (string, error) {
+			resp, err := http.Get("http://localhost:" + strconv.Itoa(hostPort))
+			if err != nil {
+				return "", err
+			}
+			defer resp.Body.Close()
+
+			buf := &bytes.Buffer{}
+			if _, err := io.Copy(buf, resp.Body); err != nil {
+				return "", fmt.Errorf("failed to read response: %s", err.Error())
+			}
+
+			return strings.TrimSpace(buf.String()), nil
+		}).Should(Equal("it works"))
+	})
+})
+
+func resolveBuildpack(t Tester) string {
 	if envBuildpackPath := os.Getenv(buildpackPath); envBuildpackPath != "" {
 		t.Log("Prebuilt buildpack path provided, NOT building...")
 		if !filepath.IsAbs(envBuildpackPath) {
@@ -113,7 +123,7 @@ func resolveBuildpack(t *testing.T) string {
 	return filepath.Join(cmd.Dir, "build/")
 }
 
-func projectDir(t *testing.T) string {
+func projectDir(t Tester) string {
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("get working dir: %s", err)
@@ -126,7 +136,7 @@ func projectDir(t *testing.T) string {
 	return wd
 }
 
-func findExec(t *testing.T, command, override string) string {
+func findExec(t Tester, command, override string) string {
 	if override != "" {
 		abs, err := filepath.Abs(override)
 		if err != nil {
@@ -157,4 +167,14 @@ func getFreePort() (int, error) {
 	}
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+type Tester interface {
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
+	Error(...interface{})
+	Errorf(format string, args ...interface{})
+	Log(args ...interface{})
+	Logf(format string, args ...interface{})
+	FailNow()
 }
