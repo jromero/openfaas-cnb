@@ -7,6 +7,7 @@ import (
 	"github.com/buildpacks/libbuildpack/v2/build"
 
 	"github.com/jromero/openfaas-cnb/cmd"
+	"github.com/jromero/openfaas-cnb/pkg/config"
 	"github.com/jromero/openfaas-cnb/pkg/watchdog"
 )
 
@@ -16,7 +17,14 @@ func main() {
 		cmd.Exit(cmd.UnexpectedError, err)
 	}
 
-	conf, err := watchdog.ParseConfig(b.Application.Root)
+	fh, err := os.Open(config.Filename(b.Application.Root))
+	if err != nil {
+		b.Logger.Info(err.Error())
+		os.Exit(b.Failure(cmd.ParseConfigError))
+	}
+	defer fh.Close()
+
+	conf, err := watchdog.ParseConfig(fh)
 	if err != nil {
 		b.Logger.Info(err.Error())
 		os.Exit(b.Failure(cmd.ParseConfigError))

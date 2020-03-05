@@ -12,8 +12,9 @@ type Config struct {
 }
 
 type Watchdog struct {
-	Version string `toml:"version"`
-	Env Env `toml:"env"`
+	Version     string `toml:"version"`
+	ProcessType string `toml:"process_type"`
+	Env         Env    `toml:"env"`
 }
 
 type Env map[string]string

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/BurntSushi/toml"
@@ -42,6 +43,41 @@ var _ = Describe("Watchdog", func() {
 		Expect(os.RemoveAll(tmpDir)).To(BeNil())
 	})
 
+	Describe("ParseConfig", func() {
+		It("parses a config file", func() {
+			conf, err := watchdog.ParseConfig(strings.NewReader(`
+[watchdog]
+version = "1.2.3"
+process_type = "someType"
+
+[watchdog.env]
+key1 = "value1"
+`))
+			Expect(err).To(BeNil())
+			Expect(conf).To(Equal(config.Config{Watchdog: config.Watchdog{
+				Version:     "1.2.3",
+				ProcessType: "someType",
+				Env:         map[string]string{"key1": "value1"},
+			}}))
+		})
+
+		Context("version is not set", func() {
+			It("defaults to '0.7.6'", func() {
+				conf, err := watchdog.ParseConfig(strings.NewReader(``))
+				Expect(err).To(BeNil())
+				Expect(conf.Watchdog.Version).To(Equal("0.7.6"))
+			})
+		})
+
+		Context("process_type is not set", func() {
+			It("defaults to 'web'", func() {
+				conf, err := watchdog.ParseConfig(strings.NewReader(``))
+				Expect(err).To(BeNil())
+				Expect(conf.Watchdog.ProcessType).To(Equal("web"))
+			})
+		})
+	})
+
 	Describe("Contributor", func() {
 		var (
 			lyrs layers.Layers
@@ -55,7 +91,6 @@ var _ = Describe("Watchdog", func() {
 		})
 
 		Context("when version 0.0.1 used", func() {
-
 			BeforeEach(func() {
 				httpClient := watchdog.NewHttpClientMock(mc).GetMock.Return(&http.Response{
 					StatusCode: 200,
@@ -111,18 +146,8 @@ var _ = Describe("Watchdog", func() {
 			})
 		})
 
-		Context("another buildpack provides 'web' process 'ruby app.rb'", func() {
-			BeforeEach(func() {
-				err := lyrs.WriteApplicationMetadata(layers.Metadata{
-					Processes: []layers.Process{{
-						Type:    "web",
-						Command: "ruby app.rb",
-					}},
-				})
-				Expect(err).To(BeNil())
-			})
-
-			It("should set function_process to 'web' process and create 'faas' process", func() {
+		Context("'process_type' is set to 'blah'", func() {
+			It("should set function_process to 'web' process type and create 'faas' process type", func() {
 				httpClient := watchdog.NewHttpClientMock(mc).GetMock.Return(&http.Response{
 					StatusCode: 200,
 					Body:       ioutil.NopCloser(bytes.NewReader([]byte("version 0.0.2"))),
@@ -130,8 +155,9 @@ var _ = Describe("Watchdog", func() {
 				layerCreator := watchdog.NewContributor(logger.Logger{}, httpClient)
 
 				watchdogLayer, err := layerCreator.Contribute(lyrs, config.Watchdog{
-					Version: "0.0.1",
-					Env:     nil,
+					Version:     "0.0.1",
+					ProcessType: "blah",
+					Env:         nil,
 				})
 				Expect(err).To(BeNil())
 
@@ -141,7 +167,7 @@ var _ = Describe("Watchdog", func() {
 
 				b, err := ioutil.ReadFile(filepath.Join(watchdogLayer.Root, "env.launch", "function_process.default"))
 				Expect(err).To(BeNil())
-				Expect(string(b)).To(Equal("/cnb/lifecycle/launcher web"))
+				Expect(string(b)).To(Equal("/cnb/lifecycle/launcher blah"))
 
 				Expect(md.Processes[0].Type).To(Equal("faas"))
 				Expect(md.Processes[0].Command).To(Equal(filepath.Join(watchdogLayer.Root, "watchdog")))
