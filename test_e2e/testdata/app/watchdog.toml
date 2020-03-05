@@ -1,5 +1,2 @@
 [watchdog]
 version = "0.7.6"
-
-[watchdog.env]
-function_process = "./app.sh"
