@@ -176,3 +176,13 @@ func ParseConfig(reader io.Reader) (conf config.Config, err error) {
 
 	return conf, nil
 }
+
+func DefaultConfig() config.Config {
+	return config.Config{
+		Watchdog: config.Watchdog{
+			Version:     defaultVersion,
+			ProcessType: defaultProcessType,
+			Env:         nil,
+		},
+	}
+}

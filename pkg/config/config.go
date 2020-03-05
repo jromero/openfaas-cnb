@@ -19,7 +19,7 @@ type Watchdog struct {
 
 type Env map[string]string
 
-func Filename(appDir string) string {
+func Path(appDir string) string {
 	return filepath.Join(appDir, filename)
 }
 

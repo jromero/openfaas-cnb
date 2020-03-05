@@ -17,21 +17,22 @@ func main() {
 		cmd.Exit(cmd.UnexpectedError, err)
 	}
 
-	fh, err := os.Open(config.Filename(b.Application.Root))
-	if err != nil {
-		b.Logger.Info(err.Error())
-		os.Exit(b.Failure(cmd.ParseConfigError))
+	conf := watchdog.DefaultConfig()
+	configPath := config.Path(b.Application.Root)
+	if fh, err := os.Open(configPath); err != nil {
+		if !os.IsNotExist(err) {
+			cmd.ExitWithLogger(b.Logger, cmd.UnexpectedError, err)
+		}
+	} else {
+		defer fh.Close()
+		conf, err = watchdog.ParseConfig(fh)
+		if err != nil {
+			cmd.ExitWithLogger(b.Logger, cmd.ParseConfigError, err)
+		}
 	}
-	defer fh.Close()
 
-	conf, err := watchdog.ParseConfig(fh)
-	if err != nil {
-		b.Logger.Info(err.Error())
-		os.Exit(b.Failure(cmd.ParseConfigError))
-	}
-
-	layerCreator := watchdog.NewContributor(b.Logger, http.DefaultClient)
-	_, err = layerCreator.Contribute(b.Layers, conf.Watchdog)
+	contributor := watchdog.NewContributor(b.Logger, http.DefaultClient)
+	_, err = contributor.Contribute(b.Layers, conf.Watchdog)
 	if err != nil {
 		b.Logger.Info(err.Error())
 		os.Exit(b.Failure(cmd.LayerCreationError))
