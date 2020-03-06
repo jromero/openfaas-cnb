@@ -146,7 +146,7 @@ key1 = "value1"
 			})
 		})
 
-		Context("'process_type' is set to 'blah'", func() {
+		Context("when 'process_type' is set to 'blah'", func() {
 			It("should set function_process to 'web' process type and create 'faas' process type", func() {
 				httpClient := watchdog.NewHttpClientMock(mc).GetMock.Return(&http.Response{
 					StatusCode: 200,
@@ -171,6 +171,26 @@ key1 = "value1"
 
 				Expect(md.Processes[0].Type).To(Equal("faas"))
 				Expect(md.Processes[0].Command).To(Equal(filepath.Join(watchdogLayer.Root, "watchdog")))
+			})
+		})
+
+		Context("when version is not found", func() {
+			It("should fail", func() {
+				httpClient := watchdog.NewHttpClientMock(mc).GetMock.Return(&http.Response{
+					StatusCode: 404,
+					Body:       ioutil.NopCloser(bytes.NewReader([]byte("not found"))),
+				}, nil)
+				layerCreator := watchdog.NewContributor(logger.Logger{}, httpClient)
+
+				_, err := layerCreator.Contribute(lyrs, config.Watchdog{
+					Version:     "0.0.1",
+					ProcessType: "blah",
+					Env:         nil,
+				})
+
+				Expect(err).ToNot(BeNil())
+				Expect(err.Error()).To(ContainSubstring("downloading from"))
+				Expect(err.Error()).To(ContainSubstring("returned status code '404'"))
 			})
 		})
 	})

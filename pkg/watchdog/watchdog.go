@@ -136,6 +136,10 @@ func (l *Contributor) downloadWatchdog(version string, layerDir string) error {
 		_ = resp.Body.Close()
 	}()
 
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("downloading from '%s' returned status code '%d'", downloadUrl, resp.StatusCode)
+	}
+
 	err = os.MkdirAll(layerDir, os.ModePerm)
 	if err != nil {
 		return errors.New("creating layer dir: " + err.Error())
