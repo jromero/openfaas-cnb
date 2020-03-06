@@ -8,15 +8,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/BurntSushi/toml"
 	"github.com/buildpacks/libbuildpack/v2/layers"
 	"github.com/buildpacks/libbuildpack/v2/logger"
-
-	"github.com/jromero/openfaas-cnb/pkg/config"
 )
 
-const defaultVersion = "0.7.6"
-const executableName = "watchdog"
+const (
+	executableName = "watchdog"
+)
 
 type metadata struct {
 	Version string
@@ -26,66 +24,109 @@ type HttpClient interface {
 	Get(url string) (*http.Response, error)
 }
 
-type LayerCreator struct {
+type Contributor struct {
 	log        logger.Logger
 	httpClient HttpClient
 }
 
-func NewLayerCreator(log logger.Logger, httpClient HttpClient) *LayerCreator {
-	return &LayerCreator{
+func NewContributor(log logger.Logger, httpClient HttpClient) *Contributor {
+	return &Contributor{
 		log:        log,
 		httpClient: httpClient,
 	}
 }
 
-func (l *LayerCreator) Create(lyrs layers.Layers, conf config.Watchdog) (*layers.Layer, error) {
+func (l *Contributor) Contribute(lyrs layers.Layers, conf Config) (*layers.Layer, error) {
 	watchdogLayer := lyrs.Layer(executableName)
 
-	md := &metadata{}
-	if err := watchdogLayer.ReadMetadata(md); err != nil {
-		return nil, errors.New("read metadata: " + err.Error())
+	if err := l.installBinaries(watchdogLayer, conf.Version); err != nil {
+		return nil, err
+	}
+
+	if err := l.configureApp(lyrs, watchdogLayer, conf.ProcessType); err != nil {
+		return nil, err
+	}
+
+	return &watchdogLayer, nil
+}
+
+func (l *Contributor) installBinaries(watchdogLayer layers.Layer, version string) error {
+	wdMD := &metadata{}
+	if err := watchdogLayer.ReadMetadata(wdMD); err != nil {
+		return errors.New("read metadata: " + err.Error())
 	}
 
 	switch {
-	case md.Version == conf.Version:
+	case wdMD.Version == version:
 		l.log.Debug("using cache")
-		return &watchdogLayer, nil
-	case md.Version != "":
+	case wdMD.Version != "":
 		if err := watchdogLayer.RemoveMetadata(); err != nil {
-			return nil, errors.New("removing old metadata: " + err.Error())
+			return errors.New("removing old metadata: " + err.Error())
+		}
+		fallthrough
+	default:
+		if err := l.downloadWatchdog(version, watchdogLayer.Root); err != nil {
+			return errors.New("downloading binary: " + err.Error())
 		}
 	}
 
-	md.Version = conf.Version
-	if err := watchdogLayer.WriteMetadata(&md, layers.Cache, layers.Launch); err != nil {
-		return nil, errors.New("writing metadata: " + err.Error())
+	wdMD.Version = version
+	if err := watchdogLayer.WriteMetadata(&wdMD, layers.Cache, layers.Launch); err != nil {
+		return errors.New("writing metadata: " + err.Error())
 	}
 
-	for key, value := range conf.Env {
-		err := watchdogLayer.OverrideLaunchEnv(key, value)
-		if err != nil {
-			return nil, err
-		}
+	return nil
+}
+
+// configureApp configures the application
+func (l *Contributor) configureApp(lyrs layers.Layers, watchdogLayer layers.Layer, processType string) error {
+	err := watchdogLayer.DefaultLaunchEnv("function_process", fmt.Sprintf("/cnb/lifecycle/launcher %s", processType))
+	if err != nil {
+		return errors.New("writing function_process env var: " + err.Error())
 	}
 
-	downloadUrl := downloadUrl(conf.Version)
+	err = lyrs.WriteApplicationMetadata(layers.Metadata{
+		Processes: []layers.Process{{
+			Type:    "faas",
+			Command: filepath.Join(watchdogLayer.Root, executableName),
+			Args:    nil,
+			Direct:  false,
+		}},
+		Slices: nil,
+	})
+	if err != nil {
+		return errors.New("writing app metadata file: " + err.Error())
+	}
+
+	return nil
+}
+
+func (l *Contributor) downloadWatchdog(version string, layerDir string) error {
+	downloadUrl := fmt.Sprintf(
+		"https://github.com/openfaas-incubator/of-watchdog/releases/download/%s/of-watchdog",
+		version,
+	)
 	l.log.Debug("downloading from: %s", downloadUrl)
 	resp, err := l.httpClient.Get(downloadUrl)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()
 
-	err = os.MkdirAll(watchdogLayer.Root, os.ModePerm)
-	if err != nil {
-		return nil, errors.New("creating layer dir: " + err.Error())
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("downloading from '%s' returned status code '%d'", downloadUrl, resp.StatusCode)
 	}
 
-	watchdogBin, err := os.Create(filepath.Join(watchdogLayer.Root, executableName))
+	err = os.MkdirAll(layerDir, os.ModePerm)
 	if err != nil {
-		return nil, errors.New("creating binary: " + err.Error())
+		return errors.New("creating layer dir: " + err.Error())
+	}
+
+	watchdogBin, err := os.Create(filepath.Join(layerDir, executableName))
+	if err != nil {
+		return errors.New("creating binary: " + err.Error())
 	}
 	defer func() {
 		_ = watchdogBin.Close()
@@ -93,41 +134,13 @@ func (l *LayerCreator) Create(lyrs layers.Layers, conf config.Watchdog) (*layers
 
 	_, err = io.Copy(watchdogBin, resp.Body)
 	if err != nil {
-		return nil, errors.New("downloading watchdog: " + err.Error())
+		return errors.New("downloading watchdog: " + err.Error())
 	}
 
 	if err := os.Chmod(watchdogBin.Name(), os.ModePerm); err != nil {
-		return nil, err
+		return err
 	}
 
-	return &watchdogLayer, nil
+	return nil
 }
 
-func downloadUrl(version string) string {
-	return fmt.Sprintf(
-		"https://github.com/openfaas-incubator/of-watchdog/releases/download/%s/of-watchdog",
-		version,
-	)
-}
-
-func Process(watchdogLayerDir string) layers.Process {
-	return layers.Process{
-		Type:    "web",
-		Command: filepath.Join(watchdogLayerDir, executableName),
-		Args:    nil,
-		Direct:  false,
-	}
-}
-
-func ParseConfig(appDir string) (*config.Config, error) {
-	conf := &config.Config{}
-	if _, err := toml.DecodeFile(config.Filename(appDir), conf); err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	if conf.Watchdog.Version == "" {
-		conf.Watchdog.Version = defaultVersion
-	}
-
-	return conf, nil
-}

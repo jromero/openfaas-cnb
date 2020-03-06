@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/buildpacks/libbuildpack/v2/build"
-	"github.com/buildpacks/libbuildpack/v2/layers"
 
 	"github.com/jromero/openfaas-cnb/cmd"
 	"github.com/jromero/openfaas-cnb/pkg/watchdog"
@@ -17,25 +16,24 @@ func main() {
 		cmd.Exit(cmd.UnexpectedError, err)
 	}
 
-	conf, err := watchdog.ParseConfig(b.Application.Root)
-	if err != nil {
-		b.Logger.Info(err.Error())
-		os.Exit(b.Failure(cmd.ParseConfigError))
+	conf := watchdog.DefaultConfig()
+	configPath := watchdog.ConfigPath(b.Application.Root)
+	if fh, err := os.Open(configPath); err != nil {
+		if !os.IsNotExist(err) {
+			cmd.ExitWithLogger(b.Logger, cmd.UnexpectedError, err)
+		}
+	} else {
+		defer fh.Close()
+		conf, err = watchdog.ParseConfig(fh)
+		if err != nil {
+			cmd.ExitWithLogger(b.Logger, cmd.ParseConfigError, err)
+		}
 	}
 
-	layerCreator := watchdog.NewLayerCreator(b.Logger, http.DefaultClient)
-
-	watchdogLayer, err := layerCreator.Create(b.Layers, conf.Watchdog)
+	contributor := watchdog.NewContributor(b.Logger, http.DefaultClient)
+	_, err = contributor.Contribute(b.Layers, conf)
 	if err != nil {
 		b.Logger.Info(err.Error())
 		os.Exit(b.Failure(cmd.LayerCreationError))
-	}
-
-	err = b.Layers.WriteApplicationMetadata(layers.Metadata{
-		Processes: []layers.Process{watchdog.Process(watchdogLayer.Root)},
-	})
-	if err != nil {
-		b.Logger.Info(err.Error())
-		os.Exit(b.Failure(cmd.UnexpectedError))
 	}
 }

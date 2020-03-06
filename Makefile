@@ -25,11 +25,13 @@ help:
 	@echo
 
 build: export GOFLAGS := $(GOFLAGS)
+build: export GOOS := linux
 build:
 	@echo "> Building ${VERSION}..."
 	go build -ldflags="$(LDFLAGS)" -o build/bin/build -a ./cmd/build
 	go build -ldflags="$(LDFLAGS)" -o build/bin/detect -a ./cmd/detect
 	cp buildpack.toml build/buildpack.toml
+	cp package.toml build/package.toml
 
 test: export GOFLAGS := $(GOFLAGS)
 test:
@@ -40,8 +42,12 @@ test-e2e:
 	@echo "> Running end-to-end tests..."
 	go test -tags e2e -v ./test_e2e/...
 
-package:
-	@echo "> Packaging..."
+package-image:
+	@echo "> Packaging as image..."
+	cd build; pack package-buildpack jar03/openfass-cnb:latest -p package.toml
+
+package-tgz:
+	@echo "> Packaging as tgz..."
 	@cd build; tar cvzf openfaas-cnb-$(VERSION).tgz buildpack.toml bin/
 
 clean:
