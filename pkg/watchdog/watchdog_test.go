@@ -16,7 +16,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/jromero/openfaas-cnb/pkg/config"
 	"github.com/jromero/openfaas-cnb/pkg/watchdog"
 )
 
@@ -54,18 +53,17 @@ process_type = "someType"
 key1 = "value1"
 `))
 			Expect(err).To(BeNil())
-			Expect(conf).To(Equal(config.Config{Watchdog: config.Watchdog{
+			Expect(conf).To(Equal(watchdog.Config{
 				Version:     "1.2.3",
 				ProcessType: "someType",
-				Env:         map[string]string{"key1": "value1"},
-			}}))
+			}))
 		})
 
 		Context("version is not set", func() {
 			It("defaults to '0.7.6'", func() {
 				conf, err := watchdog.ParseConfig(strings.NewReader(``))
 				Expect(err).To(BeNil())
-				Expect(conf.Watchdog.Version).To(Equal("0.7.6"))
+				Expect(conf.Version).To(Equal("0.7.6"))
 			})
 		})
 
@@ -73,7 +71,7 @@ key1 = "value1"
 			It("defaults to 'web'", func() {
 				conf, err := watchdog.ParseConfig(strings.NewReader(``))
 				Expect(err).To(BeNil())
-				Expect(conf.Watchdog.ProcessType).To(Equal("web"))
+				Expect(conf.ProcessType).To(Equal("web"))
 			})
 		})
 	})
@@ -99,7 +97,7 @@ key1 = "value1"
 				layerCreator := watchdog.NewContributor(logger.Logger{}, httpClient)
 				_, err := layerCreator.Contribute(
 					lyrs,
-					config.Watchdog{Version: "0.0.1"},
+					watchdog.Config{Version: "0.0.1"},
 				)
 				Expect(err).To(BeNil())
 			})
@@ -115,7 +113,7 @@ key1 = "value1"
 
 					l, err := layerCreator.Contribute(
 						lyrs,
-						config.Watchdog{Version: "0.0.1"},
+						watchdog.Config{Version: "0.0.1"},
 					)
 					Expect(err).To(BeNil())
 
@@ -135,7 +133,7 @@ key1 = "value1"
 
 					l, err := layerCreator.Contribute(
 						lyrs,
-						config.Watchdog{Version: "0.0.2"},
+						watchdog.Config{Version: "0.0.2"},
 					)
 					Expect(err).To(BeNil())
 
@@ -154,10 +152,9 @@ key1 = "value1"
 				}, nil)
 				layerCreator := watchdog.NewContributor(logger.Logger{}, httpClient)
 
-				watchdogLayer, err := layerCreator.Contribute(lyrs, config.Watchdog{
+				watchdogLayer, err := layerCreator.Contribute(lyrs, watchdog.Config{
 					Version:     "0.0.1",
 					ProcessType: "blah",
-					Env:         nil,
 				})
 				Expect(err).To(BeNil())
 
@@ -182,10 +179,9 @@ key1 = "value1"
 				}, nil)
 				layerCreator := watchdog.NewContributor(logger.Logger{}, httpClient)
 
-				_, err := layerCreator.Contribute(lyrs, config.Watchdog{
+				_, err := layerCreator.Contribute(lyrs, watchdog.Config{
 					Version:     "0.0.1",
 					ProcessType: "blah",
-					Env:         nil,
 				})
 
 				Expect(err).ToNot(BeNil())

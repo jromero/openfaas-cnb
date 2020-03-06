@@ -8,18 +8,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/BurntSushi/toml"
 	"github.com/buildpacks/libbuildpack/v2/layers"
 	"github.com/buildpacks/libbuildpack/v2/logger"
-
-	"github.com/jromero/openfaas-cnb/pkg/config"
 )
 
 const (
 	executableName = "watchdog"
-
-	defaultProcessType = "web"
-	defaultVersion     = "0.7.6"
 )
 
 type metadata struct {
@@ -42,7 +36,7 @@ func NewContributor(log logger.Logger, httpClient HttpClient) *Contributor {
 	}
 }
 
-func (l *Contributor) Contribute(lyrs layers.Layers, conf config.Watchdog) (*layers.Layer, error) {
+func (l *Contributor) Contribute(lyrs layers.Layers, conf Config) (*layers.Layer, error) {
 	watchdogLayer := lyrs.Layer(executableName)
 
 	if err := l.installBinaries(watchdogLayer, conf.Version); err != nil {
@@ -50,10 +44,6 @@ func (l *Contributor) Contribute(lyrs layers.Layers, conf config.Watchdog) (*lay
 	}
 
 	if err := l.configureApp(lyrs, watchdogLayer, conf.ProcessType); err != nil {
-		return nil, err
-	}
-
-	if err := l.addEnvVars(watchdogLayer, conf.Env); err != nil {
 		return nil, err
 	}
 
@@ -83,17 +73,6 @@ func (l *Contributor) installBinaries(watchdogLayer layers.Layer, version string
 	wdMD.Version = version
 	if err := watchdogLayer.WriteMetadata(&wdMD, layers.Cache, layers.Launch); err != nil {
 		return errors.New("writing metadata: " + err.Error())
-	}
-
-	return nil
-}
-
-func (l *Contributor) addEnvVars(watchdogLayer layers.Layer, env config.Env) error {
-	for key, value := range env {
-		err := watchdogLayer.DefaultLaunchEnv(key, value)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -165,28 +144,3 @@ func (l *Contributor) downloadWatchdog(version string, layerDir string) error {
 	return nil
 }
 
-func ParseConfig(reader io.Reader) (conf config.Config, err error) {
-	if _, err = toml.DecodeReader(reader, &conf); err != nil {
-		return conf, err
-	}
-
-	if conf.Watchdog.Version == "" {
-		conf.Watchdog.Version = defaultVersion
-	}
-
-	if conf.Watchdog.ProcessType == "" {
-		conf.Watchdog.ProcessType = defaultProcessType
-	}
-
-	return conf, nil
-}
-
-func DefaultConfig() config.Config {
-	return config.Config{
-		Watchdog: config.Watchdog{
-			Version:     defaultVersion,
-			ProcessType: defaultProcessType,
-			Env:         nil,
-		},
-	}
-}

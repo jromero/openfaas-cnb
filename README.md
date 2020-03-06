@@ -23,10 +23,6 @@ version = "0.7.6"
 # See `pack inspect-image <built-app-image>`
 # (default: web)
 process_type = "web"
-
-# Key-value pairs that will be passed onto image as environment variables.
-# See https://github.com/openfaas-incubator/of-watchdog#configuration
-[watchdog.env]
 ```
 
 #### Build your app

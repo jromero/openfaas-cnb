@@ -7,7 +7,6 @@ import (
 	"github.com/buildpacks/libbuildpack/v2/build"
 
 	"github.com/jromero/openfaas-cnb/cmd"
-	"github.com/jromero/openfaas-cnb/pkg/config"
 	"github.com/jromero/openfaas-cnb/pkg/watchdog"
 )
 
@@ -18,7 +17,7 @@ func main() {
 	}
 
 	conf := watchdog.DefaultConfig()
-	configPath := config.Path(b.Application.Root)
+	configPath := watchdog.ConfigPath(b.Application.Root)
 	if fh, err := os.Open(configPath); err != nil {
 		if !os.IsNotExist(err) {
 			cmd.ExitWithLogger(b.Logger, cmd.UnexpectedError, err)
@@ -32,7 +31,7 @@ func main() {
 	}
 
 	contributor := watchdog.NewContributor(b.Logger, http.DefaultClient)
-	_, err = contributor.Contribute(b.Layers, conf.Watchdog)
+	_, err = contributor.Contribute(b.Layers, conf)
 	if err != nil {
 		b.Logger.Info(err.Error())
 		os.Exit(b.Failure(cmd.LayerCreationError))
