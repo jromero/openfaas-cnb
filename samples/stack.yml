@@ -1,0 +1,13 @@
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://127.0.0.1:8989
+functions:
+  streaming:
+    lang: dockerfile
+    image: localhost:5000/openfaas-cnb/streaming:latest
+    skip_build: true
+    environment:
+      CNB_PROCESS_TYPE: faas
+    constraints:
+      - "node.platform.os == linux"

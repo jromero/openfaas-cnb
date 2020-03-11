@@ -31,7 +31,7 @@ process_type = "web"
 pack build my-app \
   --builder heroku/buildpacks:18 \
   --buildpack from=builder \
-  --buildpack jar03/openfass-cnb:latest \
+  --buildpack jar013/openfaas-cnb:latest \
   --path .
 ```
 

@@ -44,7 +44,7 @@ test-e2e:
 
 package-image:
 	@echo "> Packaging as image..."
-	cd build; pack package-buildpack jar03/openfass-cnb:latest -p package.toml
+	cd build; pack package-buildpack jar013/openfaas-cnb:latest -p package.toml
 
 package-tgz:
 	@echo "> Packaging as tgz..."
